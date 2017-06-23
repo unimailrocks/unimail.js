@@ -3,13 +3,11 @@ const path = require('path')
 const axios = require('axios')
 const snakeCase = require('lodash/fp/snakeCase')
 const assignIn = require('lodash/fp/assignIn')
-const { promisify } = require('util')
+const mkdirp = require('mkdirp')
 
 const supportEmail = 'support@unimail.co'
 const uptimeMonitor = 'uptime.unimail.co'
 const errorPrelude = 'unimail API Error:'
-
-const readFile = promisify(fs.readFile)
 
 const env = process.env
 
@@ -19,10 +17,66 @@ const defaultConfigFileBase = env.UNIMAIL_CONFIG_FILE = (() => {
   return path.join(xdgConfigHome, 'unimail', 'config')
 })()
 
+const cacheFileName = env.UNIMAIL_CACHE_FILE || (() => {
+  const home = os.homedir()
+  const xdgConfigHome = env.XDG_CONFIG_HOME || (home ? path.join(home, '.config') : null)
+  return path.join(xdgConfigHome, 'unimail', 'cache.json')
+})()
+
 const defaultConfig = {
   host: 'api.unimail.co',
   port: 80,
-  protocol: 'https'
+  protocol: 'https',
+  cache: cacheFileName,
+}
+
+// cache session token (and maybe other stuff later) in the file system
+// every operation reads or writes to the file system synchronously, possibly multiple times,
+// so use sparingly
+class CacheManager {
+  constructor(filename, key, secret) {
+    this.filename = filename
+    this.key = this.constructor.hash(key + secret)
+  }
+
+  static hash(str) {
+    let hash = 0
+    if (str.length === 0) return hash
+    for (let i = 0; i < str.length; ++i) {
+      const char = str.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+    }
+
+    return hash.toString(16)
+  }
+
+  get(key) {
+    const { filename } = this
+    if (!fs.existsSync(filename)) {
+      return null
+    }
+
+    const contents = require(filename)
+    if (!contents[this.key]) {
+      return null
+    }
+
+    return contents[this.key][key]
+  }
+
+  set(key, value) {
+    const { filename } = this
+    if (!fs.existsSync(filename)) {
+      mkdirp.sync(path.dirname(filename))
+      fs.writeFileSync(filename, '{}')
+    }
+
+    const currentContents = require(filename)
+    currentContents[this.key] = currentContents[this.key] || {}
+    currentContents[this.key][key] = value
+
+    fs.writeFileSync(filename, JSON.stringify(currentContents, null, 2))
+  }
 }
 
 class TemplateResource {
@@ -49,6 +103,10 @@ class UnimailClient {
     this.options = options
 
     this.templates = new TemplateResource(this)
+    const cacheFile = this.getConfigValue('cache')
+    if (cacheFile) {
+      this.cache = new CacheManager(cacheFile, this.getConfigValue('tokenKey'), this.getConfigValue('tokenSecret'))
+    }
   }
 
   get config() {
@@ -98,6 +156,13 @@ Specify by:
       return this.getConfigValue('sessionKey')
     }
 
+    if (!force && !this._sessionKey && this.cache) {
+      const cachedSessionKey = this.cache.get('sessionKey')
+      if (cachedSessionKey) {
+        return cachedSessionKey
+      }
+    }
+
     if (!this._sessionKey || force) {
       const response = await axios({
         method: 'post',
@@ -111,6 +176,10 @@ Specify by:
 
       if (response.data && response.data.sessionToken) {
         this._sessionKey = response.data.sessionToken
+
+        if (this.cache) {
+          this.cache.set('sessionKey', this._sessionKey)
+        }
       }
     }
 
@@ -119,7 +188,6 @@ Specify by:
     }
 
     throw new Error(`${errorPrelude} Could not get session token for some reason; could be a unimail issue. Please report this incident to ${supportEmail}. Thank you for your patience.`)
-
   }
 
   getSessionKey(force) {
@@ -158,7 +226,12 @@ This could also be a configuration issue on the client end. The API URL you're u
 
   async withSessionKey(fn) {
     const sessionKey = await this.getSessionKey()
-    return fn(sessionKey)
+    try {
+      return await this._catchCommonErrors(() => fn(sessionKey))
+    } catch (e) {
+      console.error(e)
+      throw e
+    }
   }
 }
 
@@ -167,6 +240,3 @@ module.exports = {
     return new UnimailClient(options)
   }
 }
-
-// key = 38ca3294a0d6591dfebc8ab5b6235aac5a90a33e4bac11b0
-// secret = d5c57d53ff9bd5fea50b790c7819dcd6005439120b0124e2
