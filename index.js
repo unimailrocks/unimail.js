@@ -2,8 +2,9 @@ const fs = require('fs')
 const path = require('path')
 const axios = require('axios')
 const snakeCase = require('lodash/fp/snakeCase')
-const assignIn = require('lodash/fp/assignIn')
+const assignInAll = require('lodash/fp/assignInAll')
 const mkdirp = require('mkdirp')
+const querystring = require('querystring')
 
 const supportEmail = 'support@unimail.co'
 const uptimeMonitor = 'uptime.unimail.co'
@@ -28,6 +29,10 @@ const defaultConfig = {
   port: 80,
   protocol: 'https',
   cache: cacheFileName,
+}
+
+const defaultOptions = {
+  logger: console,
 }
 
 // cache session token (and maybe other stuff later) in the file system
@@ -83,6 +88,13 @@ class TemplateResource {
   constructor(client) {
     this.client = client
   }
+
+  async index() {
+    return this.client.request({
+      method: 'GET',
+      endpoint: '/v1/templates'
+    })
+  }
 }
 
 class UnimailClient {
@@ -100,7 +112,7 @@ class UnimailClient {
 
     this.configFileName = configFileName
 
-    this.options = options
+    this.options = assignInAll([defaultOptions, options])
 
     this.templates = new TemplateResource(this)
     const cacheFile = this.getConfigValue('cache')
@@ -115,7 +127,7 @@ class UnimailClient {
     }
 
     if (this.configFileName) {
-      this._config = assignIn(defaultConfig, require(this.configFileName))
+      this._config = assignInAll([defaultConfig, require(this.configFileName)])
       return this._config
     }
 
@@ -164,18 +176,23 @@ Specify by:
     }
 
     if (!this._sessionKey || force) {
-      const response = await axios({
-        method: 'post',
-        url: '/v1/sessions',
-        data: {
-          key: this.getConfigValue('tokenKey'),
-          secret: this.getConfigValue('tokenSecret'),
-        },
-        baseURL: this.getBaseURL(),
-      })
+      const response = await this._request({ method: 'post', endpoint: '/v1/sessions', data: {
+        key: this.getConfigValue('tokenKey'),
+        secret: this.getConfigValue('tokenSecret'),
+      }})
 
       if (response.data && response.data.sessionToken) {
         this._sessionKey = response.data.sessionToken
+
+        if (response.data.messages) {
+          try {
+            response.data.messages.forEach(message => {
+              this.options.logger[method](message.text)
+            })
+          } catch (e) {
+            this.options.logger.warn(`${errorPrelude} Swallowed an error trying to send you a message. Not sure exactly what happened, but the raw message is this: ${response.data.messages}`)
+          }
+        }
 
         if (this.cache) {
           this.cache.set('sessionKey', this._sessionKey)
@@ -219,19 +236,49 @@ This could also be a configuration issue on the client end. The API URL you're u
       }
 
 
-      console.error(`${errorPrelude} Unknown exception emerged${context}. The unimail API client endeavors to handle all exceptions gracefully and with a sane explanation, but we were unable to do so in this case. Please report this incident to ${supportEmail} so we can resolve this issue. Thank you for your patience.`)
+      this.options.logger.error(`${errorPrelude} Unknown exception emerged${context}. The unimail API client endeavors to handle all exceptions gracefully and with a sane explanation, but we were unable to do so in this case. Please report this incident to ${supportEmail} so we can resolve this issue. Thank you for your patience.`)
       throw e
     }
   }
 
   async withSessionKey(fn) {
-    const sessionKey = await this.getSessionKey()
+    const sessionKey = await this.getSessionKey(true)
     try {
-      return await this._catchCommonErrors(() => fn(sessionKey))
+      return await fn(sessionKey)
     } catch (e) {
-      console.error(e)
+      this.options.logger.error(e)
       throw e
     }
+  }
+
+  async _request({ method, data, endpoint, headers }) {
+    const url = method.toLowerCase() === 'get' ?
+      `${endpoint}?${querystring.stringify(data)}` : endpoint
+
+    return axios({
+      headers,
+      method,
+      url,
+      data: method.toLowerCase() === 'get' ? null : data,
+      baseURL: this.getBaseURL(),
+    })
+  }
+
+  async request({ method, data, endpoint }) {
+    return this._catchCommonErrors(() => {
+      return this.withSessionKey(async session => {
+        const response = await this._request({
+          headers: {
+            session,
+          },
+          method,
+          data,
+          endpoint,
+        })
+
+        return response.data || response
+      })
+    })
   }
 }
 
