@@ -4,6 +4,7 @@
   "description": "unimail's API",
   "main": "index.js",
   "author": "Ben Berman",
+  "repository": "unimailrocks/unimail.js",
   "license": "MIT",
   "dependencies": {
     "axios": "^0.16.2",
