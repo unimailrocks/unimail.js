@@ -96,6 +96,13 @@ class TemplateResource {
       endpoint: '/v1/templates'
     })
   }
+
+  async render(templateID) {
+    return this.client.request({
+      method: 'POST',
+      endpoint: `/v1/templates/${templateID}/renders`
+    })
+  }
 }
 
 class UnimailClient {
