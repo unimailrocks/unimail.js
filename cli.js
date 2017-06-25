@@ -7,7 +7,6 @@ require('colors') // is prototype hacking back in style yet?
 const unimail = require('./index')
 const package = require('./package.json')
 
-const client = unimail.createClient()
 
 program
   .version(package.version)
@@ -15,7 +14,12 @@ program
 program
   .command('templates')
   .description('List all unimail templates')
-  .action(async () => {
+  .option('-v, --verbose', 'Verbose')
+  .action(async options => {
+    const client = unimail.createClient({
+      verbose: options.verbose,
+      color: true
+    })
     const templates = await client.templates.index()
     const table = new Table({
       style: { 'padding-left': 2, 'padding-right': 2 },
@@ -53,7 +57,12 @@ program
 program
   .command('render [<id>]')
   .description('Render an email template to HTML')
+  .option('-v, --verbose', 'Verbose')
   .action(async (id, options) => {
+    const client = unimail.createClient({
+      verbose: options.verbose,
+      color: true
+    })
     let templateID = id
     if (!templateID) {
       const templates = await client.templates.index()

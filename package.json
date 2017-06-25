@@ -13,7 +13,8 @@
     "commander": "^2.10.0",
     "inquirer": "^3.1.1",
     "lodash": "^4.17.4",
-    "mkdirp": "^0.5.1"
+    "mkdirp": "^0.5.1",
+    "strip-ansi": "^4.0.0"
   },
   "bin": {
     "unimail": "./cli.js"

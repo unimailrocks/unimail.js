@@ -6,6 +6,8 @@ const snakeCase = require('lodash/fp/snakeCase')
 const assignInAll = require('lodash/fp/assignInAll')
 const mkdirp = require('mkdirp')
 const querystring = require('querystring')
+const colors = require('colors')
+const stripAnsi = require('strip-ansi')
 
 const supportEmail = 'support@unimail.co'
 const uptimeMonitor = 'uptime.unimail.co'
@@ -249,13 +251,20 @@ This could also be a configuration issue on the client end. The API URL you're u
     }
   }
 
-  async withSessionKey(fn) {
-    const sessionKey = await this.getSessionKey(true)
+  async withSessionKey(fn, force) {
+    const sessionKey = await this.getSessionKey(force)
     try {
       return await fn(sessionKey)
     } catch (e) {
-      this.options.logger.error(e)
-      throw e
+      if (e.status !== 401) {
+        throw e
+      }
+
+      if (this.options.verbose) {
+        this.options.logger.log('unimail API: Session key expired; fetching new one')
+      }
+
+      return this.withSessionKey(fn, true)
     }
   }
 
@@ -263,11 +272,25 @@ This could also be a configuration issue on the client end. The API URL you're u
     const url = method.toLowerCase() === 'get' ?
       `${endpoint}?${querystring.stringify(data)}` : endpoint
 
+    const body = method.toLowerCase() === 'get' ? null : data
+
+    if (this.options.verbose) {
+      const headerString = headers ? 'Headers: \n' + JSON.stringify(headers, null, 2) : ''
+      const bodyString = body ? JSON.stringify(body, null, 2) : ''
+      const tabPad = s => s.replace(/(^|\n)/g, '$1\t')
+      let message = method.toUpperCase().yellow + ' ' + this.getBaseURL() + url + '\n' + tabPad(headerString).green + '\n' + tabPad(bodyString).magenta
+      if (!this.options.colors) {
+        stripAnsi(message)
+      }
+
+      this.options.logger.log(message)
+    }
+
     return axios({
       headers,
       method,
       url,
-      data: method.toLowerCase() === 'get' ? null : data,
+      data: body,
       baseURL: this.getBaseURL(),
     })
   }
