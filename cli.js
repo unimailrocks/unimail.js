@@ -17,23 +17,36 @@ program
   .action(async () => {
     const templates = await client.templates.index()
     const table = new Table({
-      head: [{ hAlign: 'center', content: 'ID'.blue.bold }, { hAlign: 'center', content: 'Title'.blue.bold }],
       style: { 'padding-left': 2, 'padding-right': 2 },
     })
 
-    const foregrounds = ['grey', 'white']
-    const backgrounds = ['bgBlack', 'bgWhite']
+    const header =
+      [
+        { hAlign: 'center', content: '#' },
+        { hAlign: 'center', content: 'ID'.blue.bold },
+        { hAlign: 'center', content: 'Title'.blue.bold }
+      ]
+
+    const title = [{ hAlign: 'center', content: 'unimail templates'.bold + ` (${templates.length}) `.green, colSpan: header.length }]
+
+    table.push(title)
+    table.push(header)
+
+    const foregrounds = ['white', 'grey']
     templates.forEach((t, i) => {
       const index = i % 2
-      const bg = backgrounds[index]
       const fg = foregrounds[index]
       const colored = s => s[fg]
-      table.push([
-        colored(t.id), colored(t.title)
-      ])
+      table.push({
+        [i + 1]: [
+          colored(t.id), colored(t.title)
+        ]
+      })
     })
 
-    console.log(table.toString())
+    console.log()
+    console.log(table.toString().replace(/(^|\n)/g, '$1\t'))
+    console.log()
   })
 
 program.parse(process.argv)
