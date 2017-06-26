@@ -1,6 +1,6 @@
 {
   "name": "unimail",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "unimail's API",
   "main": "index.js",
   "author": "Ben Berman",
@@ -14,6 +14,7 @@
     "inquirer": "^3.1.1",
     "lodash": "^4.17.4",
     "mkdirp": "^0.5.1",
+    "shell-escape": "^0.2.0",
     "strip-ansi": "^4.0.0"
   },
   "bin": {

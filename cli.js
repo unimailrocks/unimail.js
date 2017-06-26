@@ -3,10 +3,12 @@
 const program = require('commander')
 const Table = require('cli-table2')
 const inquirer = require('inquirer')
+const fs = require('fs')
+const cp = require('child_process')
+const shellescape = require('shell-escape')
 require('colors') // is prototype hacking back in style yet?
 const unimail = require('./index')
 const package = require('./package.json')
-
 
 program
   .version(package.version)
@@ -58,6 +60,7 @@ program
   .command('render [<id>]')
   .description('Render an email template to HTML')
   .option('-v, --verbose', 'Verbose')
+  .option('-o, --open', 'Open the HTML as a file')
   .action(async (id, options) => {
     const client = unimail.createClient({
       verbose: options.verbose,
@@ -87,6 +90,15 @@ program
 
     const html = await client.templates.render(templateID)
     console.log(html)
+    if (options.open) {
+      const command = `tmp=$(mktemp).html; echo ${shellescape([html])} > $tmp; google-chrome "$tmp"; ${
+        options.verbose ? 'echo "Temp file: $tmp";' : ''
+      }`
+      cp.exec(command)
+      if (options.verbose) {
+        console.log('Running command:'.green, command)
+      }
+    }
   })
 
 program.parse(process.argv)
