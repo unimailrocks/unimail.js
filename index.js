@@ -99,10 +99,11 @@ class TemplateResource {
     })
   }
 
-  async render(templateID) {
+  async render(templateID, options) {
     return this.client.request({
       method: 'POST',
-      endpoint: `/v1/templates/${templateID}/renders`
+      endpoint: `/v1/templates/${templateID}/renders`,
+      query: options.query,
     })
   }
 }
@@ -268,9 +269,10 @@ This could also be a configuration issue on the client end. The API URL you're u
     }
   }
 
-  async _request({ method, data, endpoint, headers }) {
-    const url = method.toLowerCase() === 'get' ?
-      `${endpoint}?${querystring.stringify(data)}` : endpoint
+  async _request({ method, data, endpoint, headers, query }) {
+    const q = method.toLowerCase() === 'get' ? assignInAll([data, query]) : query
+    const qs = querystring.stringify(q)
+    const url = `${endpoint}${qs && `?${qs}`}`
 
     const body = method.toLowerCase() === 'get' ? null : data
 
@@ -295,7 +297,7 @@ This could also be a configuration issue on the client end. The API URL you're u
     })
   }
 
-  async request({ method, data, endpoint }) {
+  async request({ method, data, endpoint, query }) {
     return this._catchCommonErrors(() => {
       return this.withSessionKey(async session => {
         const response = await this._request({
@@ -305,6 +307,7 @@ This could also be a configuration issue on the client end. The API URL you're u
           method,
           data,
           endpoint,
+          query,
         })
 
         return response.data || response

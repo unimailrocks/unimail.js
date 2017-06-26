@@ -6,6 +6,7 @@ const inquirer = require('inquirer')
 const fs = require('fs')
 const cp = require('child_process')
 const shellescape = require('shell-escape')
+const cheerio = require('cheerio')
 require('colors') // is prototype hacking back in style yet?
 const unimail = require('./index')
 const package = require('./package.json')
@@ -57,20 +58,28 @@ program
   })
 
 program
-  .command('render [<id>]')
+  .command('render')
   .description('Render an email template to HTML')
-  .option('-v, --verbose', 'Verbose')
+  .option('-v, --verbose', 'Verbose (debug information -- ignores "--silent" option)')
   .option('-o, --open', 'Open the HTML as a file')
-  .action(async (id, options) => {
+  .option('-x, --autoclose [time]', 'Auto close the HTML after some number of seconds (defaults to 5)')
+  // for unimail employees to test server development
+  .option('-d, --debug <debug>', 'Ask the server to print debug information')
+  .option('-s, --silent', 'Do not print normal output (does not cancel "--verbose" option)')
+  .option('-n, --network', 'Show network requests')
+  .option('-i, --id <id>', 'Template ID')
+  .action(async (options) => {
     const client = unimail.createClient({
-      verbose: options.verbose,
+      verbose: options.verbose || options.network,
       color: true
     })
-    let templateID = id
+    let templateID = options.id
     if (!templateID) {
       const templates = await client.templates.index()
       if (templates.length === 0) {
-        console.error('Your account has no templates')
+        if (!options.silent) {
+          console.error('Your account has no templates')
+        }
         process.exit(1)
       }
       const answers = await inquirer.prompt([
@@ -88,10 +97,45 @@ program
       templateID = answers.templateID
     }
 
-    const html = await client.templates.render(templateID)
-    console.log(html)
+    const html = await client.templates.render(templateID, {
+      query: {
+        debug: options.debug,
+      },
+    })
+
+    if (!options.silent) {
+      console.log(html)
+    }
+
     if (options.open) {
-      const command = `tmp=$(mktemp).html; echo ${shellescape([html])} > $tmp; google-chrome "$tmp"; ${
+      const $ = cheerio.load(html)
+      if (options.autoclose) {
+        const seconds = typeof options.autoclose === 'boolean' ? 5 : parseInt(options.autoclose, 10)
+        $('html').append(`
+          <script>
+            let left = ${seconds};
+            const interval = setInterval(() => {
+              if (--left === 0) {
+                window.close();
+              } else {
+                document.getElementById('msg').innerHTML = 'autoclosing in ' + left + ' seconds (press space to cancel)'
+              }
+            }, 1000)
+
+            document.addEventListener('keydown', e => {
+              if (e.keyCode === 32) {
+                clearInterval(interval)
+                document.getElementById('msg').innerHTML = ''
+              }
+            })
+          </script>
+        `)
+
+        $('body').append(`
+          <div id="msg">autoclosing in ${seconds} seconds (press space to cancel)</div>
+        `)
+      }
+      const command = `tmp=$(mktemp).html; echo ${shellescape([$.html()])} > $tmp; google-chrome "$tmp"; ${
         options.verbose ? 'echo "Temp file: $tmp";' : ''
       }`
       cp.exec(command)
