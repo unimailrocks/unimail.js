@@ -109,6 +109,7 @@ program
 
     if (options.open) {
       const $ = cheerio.load(html)
+      $('title').prepend('&lt;render test&gt;: ')
       if (options.autoclose) {
         const seconds = typeof options.autoclose === 'boolean' ? 5 : parseInt(options.autoclose, 10)
         $('html').append(`
