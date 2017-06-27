@@ -257,7 +257,7 @@ This could also be a configuration issue on the client end. The API URL you're u
     try {
       return await fn(sessionKey)
     } catch (e) {
-      if (e.status !== 401) {
+      if (e.response.status !== 401) {
         throw e
       }
 
