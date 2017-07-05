@@ -29,7 +29,6 @@ const cacheFileName = env.UNIMAIL_CACHE_FILE || (() => {
 
 const defaultConfig = {
   host: 'api.unimail.co',
-  port: 80,
   protocol: 'https',
   cache: cacheFileName,
 }
@@ -166,7 +165,13 @@ Specify by:
   }
 
   getBaseURL() {
-    return `${this.getConfigValue('protocol')}://${this.getConfigValue('host')}:${this.getConfigValue('port')}`
+    const withoutPort = `${this.getConfigValue('protocol')}://${this.getConfigValue('host')}`
+    const port = this.getConfigValue('port', { required: false })
+    if (port) {
+      return `${withoutPort}:${port}`
+    }
+
+    return withoutPort
   }
 
   /**
@@ -257,7 +262,7 @@ This could also be a configuration issue on the client end. The API URL you're u
     try {
       return await fn(sessionKey)
     } catch (e) {
-      if (e.response.status !== 401) {
+      if (!e.response || e.response.status !== 401) {
         throw e
       }
 
