@@ -1,6 +1,6 @@
 {
   "name": "unimail",
-  "version": "0.4.4",
+  "version": "0.5.3",
   "description": "unimail's API",
   "main": "index.js",
   "author": "Ben Berman",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "axios": "^0.16.2",
+    "babel-polyfill": "^6.23.0",
     "cheerio": "^1.0.0-rc.1",
     "cli-table2": "^0.2.0",
     "colors": "^1.1.2",
@@ -27,7 +28,7 @@
   },
   "devDependencies": {
     "babel-cli": "^6.24.1",
-    "babel-polyfill": "^6.23.0",
+    "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-env": "^1.6.0"
   }
 }
