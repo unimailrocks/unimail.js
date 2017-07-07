@@ -1,11 +1,15 @@
 {
   "name": "unimail",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "unimail's API",
   "main": "index.js",
   "author": "Ben Berman",
   "repository": "unimailrocks/unimail.js",
   "license": "MIT",
+  "scripts": {
+    "build": "babel src -d .",
+    "prepublishOnly": "npm run build"
+  },
   "dependencies": {
     "axios": "^0.16.2",
     "cheerio": "^1.0.0-rc.1",
@@ -20,5 +24,10 @@
   },
   "bin": {
     "unimail": "./cli.js"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-polyfill": "^6.23.0",
+    "babel-preset-env": "^1.6.0"
   }
 }

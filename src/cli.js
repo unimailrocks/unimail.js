@@ -7,12 +7,12 @@ const fs = require('fs')
 const cp = require('child_process')
 const shellescape = require('shell-escape')
 const cheerio = require('cheerio')
-require('colors') // is prototype hacking back in style yet?
+const colors = require('colors/safe')
 const unimail = require('./index')
-const package = require('./package.json')
+const { version } = require('./package.json')
 
 program
-  .version(package.version)
+  .version(version)
 
 program
   .command('templates')
@@ -31,11 +31,11 @@ program
     const header =
       [
         { hAlign: 'center', content: '#' },
-        { hAlign: 'center', content: 'ID'.blue.bold },
-        { hAlign: 'center', content: 'Title'.blue.bold }
+        { hAlign: 'center', content: colors.blue.bold('ID') },
+        { hAlign: 'center', content: colors.blue.bold('Title') }
       ]
 
-    const title = [{ hAlign: 'center', content: 'unimail templates'.bold + ` (${templates.length}) `.green, colSpan: header.length }]
+    const title = [{ hAlign: 'center', content: colors.bold('unimail templates') + colors.green(` (${templates.length}) `), colSpan: header.length }]
 
     table.push(title)
     table.push(header)
@@ -44,7 +44,7 @@ program
     templates.forEach((t, i) => {
       const index = i % 2
       const fg = foregrounds[index]
-      const colored = s => s[fg]
+      const colored = colors[fg]
       table.push({
         [i + 1]: [
           colored(t.id), colored(t.title)
