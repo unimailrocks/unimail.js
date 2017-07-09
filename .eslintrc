@@ -1,0 +1,24 @@
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended"
+  ],
+  "plugins": [
+    "react",
+  ],
+  "parser": "babel-eslint",
+  "rules": {
+    "no-extra-semi": ["warn"],
+    "semi": ["warn", "never"],
+    "no-console": "warn",
+    "indent": ["warn", 2],
+    "no-multi-spaces": ["error"],
+    "react/jsx-uses-vars": [2],
+    "react/react-in-jsx-scope": 0,
+    "react/jsx-indent": ["warn", 2]
+  },
+  "env": {
+    "node": true,
+    "es6": true
+  }
+}

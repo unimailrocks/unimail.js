@@ -6,7 +6,7 @@ const snakeCase = require('lodash/fp/snakeCase')
 const assignInAll = require('lodash/fp/assignInAll')
 const mkdirp = require('mkdirp')
 const querystring = require('querystring')
-const colors = require('colors')
+require('colors')
 const stripAnsi = require('strip-ansi')
 
 const supportEmail = 'support@unimail.co'
@@ -15,7 +15,7 @@ const errorPrelude = 'unimail API Error:'
 
 const env = process.env
 
-const defaultConfigFileBase = env.UNIMAIL_CONFIG_FILE = (() => {
+const defaultConfigFileBase = env.UNIMAIL_CONFIG_FILE || (() => {
   const home = os.homedir()
   const xdgConfigHome = env.XDG_CONFIG_HOME || (home ? path.join(home, '.config') : null)
   return path.join(xdgConfigHome, 'unimail', 'config')
@@ -63,7 +63,7 @@ class CacheManager {
       return null
     }
 
-    const contents = require(filename)
+    const contents = JSON.parse(fs.readFileSync(filename))
     if (!contents[this.key]) {
       return null
     }
@@ -78,7 +78,7 @@ class CacheManager {
       fs.writeFileSync(filename, '{}')
     }
 
-    const currentContents = require(filename)
+    const currentContents = JSON.parse(fs.readFileSync(filename))
     currentContents[this.key] = currentContents[this.key] || {}
     currentContents[this.key][key] = value
 
@@ -148,8 +148,16 @@ class UnimailClient {
     required = true,
   } = {}) {
     const envKey = `UNIMAIL_${snakeCase(key)}`.toUpperCase()
-    const value = this.options[key] || env[envKey] || this.config[key]
-    if (!value && required) {
+    let value
+    if (typeof this.options[key] !== 'undefined') {
+      value = this.options[key]
+    } else if (typeof env[envKey] !== 'undefined') {
+      value = env[envKey]
+    } else {
+      value = this.config[key]
+    }
+
+    if (typeof value === 'undefined' && required) {
       const configFileMessage =
         this.configFileName ?
           `(currently located at ${this.configFileName})`
