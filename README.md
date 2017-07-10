@@ -42,7 +42,9 @@ const options = {
   // if the environment variables are not set and the `cache` key
   // is not provided or disabled (by passing `false`)
   // then the cache file defaults to `~/.config/unimail/cache.json`. `~/.config/unimail`
-  // will be created if it does not already exist
+  // will be created if it does not already exist.
+  // If `cache` is actively set to `false`, no cache will be used and
+  // a new session token will be requested
   cache: process.env.UNIMAIL_CACHE_FILE || `${process.env.XDG_CONFIG_HOME}/unimail/cache.json`,
   // Very similar to the cache option, but we won't create it if it
   // doesn't exist, and it can be either `.js` or `.json` (it gets
@@ -53,6 +55,10 @@ const options = {
   logger: console,
   // if colors are turned on, the verbose output will be colorized with ANSI
   colors: false,
+  // you can specify a session key manually, preventing the API from fetching
+  // one using your API token. This is useful if you'd like to provide
+  // your own session key caching strategy.
+  sessionKey: undefined,
 }
 
 unimail.createClient(options)
@@ -113,3 +119,16 @@ yarn global add unimail
 ```
 
 and call it using the command `unimail`. `unimail --help` will point you in the right direction if you'd like more information.
+
+### Config File
+
+For both the API and the CLI, a config file is optional but highly recommended. The config file can be specified as either JSON or as a node module. The location is relative to your [XDG_CONFIG_HOME](https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html), which defaults to `$HOME/.config`. So the default location (on a fresh installation of GNU/Linux with no configuration given to `unimail` in any way) is `$HOME/.config/unimail/<filename>` where `<filename>` can be `config.js` or `config.json`.
+
+The config file should probably just contain your API token details. For example, in a JSON file:
+
+```json
+{
+  "tokenKey": "<my token key>",
+  "tokenSecret": "<my token secret>"
+}
+```
