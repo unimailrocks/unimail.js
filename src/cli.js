@@ -48,8 +48,6 @@ function apiCommand({
     cmd.option(o.specifier, o.description)
   })
 
-  cmd.action(action)
-
   cmd.action(options => {
     const cacheOption = options['no-cache'] ? false : options.cache
     const cache = typeof cacheOption === 'string' || cacheOption === false ? cacheOption : undefined

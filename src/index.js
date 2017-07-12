@@ -98,7 +98,7 @@ class TemplateResource {
     })
   }
 
-  async render(templateID, options) {
+  async render(templateID, options = {}) {
     return this.client.request({
       method: 'POST',
       endpoint: `/v1/templates/${templateID}/renders`,
@@ -173,7 +173,7 @@ Specify by:
   }
 
   getBaseURL() {
-    const withoutPort = `${this.getConfigValue('protocol')}://${this.getConfigValue('host')}`
+    const withoutPort = `${this.getConfigValue('protocol')}://${this.getConfigValue('host')}`.replace(/::/, ':')
     const port = this.getConfigValue('port', { required: false })
     if (port) {
       return `${withoutPort}:${port}`
